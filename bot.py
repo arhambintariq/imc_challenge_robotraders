@@ -1,6 +1,7 @@
 import time
 import logging
 import sys
+from datetime import datetime
 
 from imcity_template import BaseBot, Side, OrderRequest, OrderBook, Order
 from estimates.safety_net import predict_market_2, predict_market_3
@@ -47,6 +48,13 @@ EXPECTED_SETTLEMENT = {
     # '8_ETF_Strangle': 0,
 }
 logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
+
+
+def update_settlement():
+    EXPECTED_SETTLEMENT['2_Eisbach_Call'] = int(predict_market_2())
+    EXPECTED_SETTLEMENT['3_Weather'] = int(predict_market_3())
+    logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
+
 
 class RoboTrader(BaseBot):
     def __init__(self, *args, **kwargs):
@@ -170,6 +178,9 @@ class RoboTrader(BaseBot):
 
 if __name__ == "__main__":
     import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     TEST_EXCHANGE = os.environ.get("IMCITY_TEST_EXCHANGE", "http://ec2-52-31-108-187.eu-west-1.compute.amazonaws.com")
     REAL_EXCHANGE = os.environ.get("IMCITY_REAL_EXCHANGE")
@@ -180,7 +191,7 @@ if __name__ == "__main__":
         raise RuntimeError("Environment variables IMCITY_USERNAME and IMCITY_PASSWORD must be set.")
 
     try:
-        bot = RoboTrader(REAL_EXCHANGE, USERNAME, PASSWORD)
+        bot = RoboTrader(TEST_EXCHANGE, USERNAME, PASSWORD)
         
         # Sync positions on startup
         server_positions = bot.request_positions()
@@ -189,9 +200,16 @@ if __name__ == "__main__":
             logger.info(f"Initial Positions: {bot.positions}")
         
         bot.start()
-        
+
+        last_minute = None
         while True:
-            time.sleep(1)
+            time.sleep(10)
+
+            now = datetime.now()
+            if now.minute in {1, 16, 34, 46} and now.minute != last_minute:
+                last_minute = now.minute
+                logger.warning("Running 15-min clock-aligned task...")
+                update_settlement()
             
     except KeyboardInterrupt:
         bot.stop()
