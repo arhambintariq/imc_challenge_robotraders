@@ -5,6 +5,7 @@ from datetime import datetime
 
 from imcity_template import BaseBot, Side, OrderRequest, OrderBook, Order
 from estimates.safety_net import predict_market_2, predict_market_3
+from estimates.weather_forecast import get_3_weather_prediction
 
 
 # colored stdout logging
@@ -76,6 +77,10 @@ class RoboTrader(BaseBot):
 
         # TODO: Check back with .request_positions() if accurate
 
+    def main(self):
+        self.get_orderbooks()
+        time.sleep(10)
+
     # INCOMING - Trade Notifications
     def on_trades(self, trades: list[dict]):
         time.sleep(1)
@@ -95,7 +100,6 @@ class RoboTrader(BaseBot):
 
     # INCOMING - Order Book Updates
     def on_orderbook(self, orderbook):
-        time.sleep(1)
         product = orderbook.product
         best_bid = orderbook.buy_orders[0].price
         best_ask = orderbook.sell_orders[0].price
@@ -112,6 +116,19 @@ class RoboTrader(BaseBot):
         logger.info(f"{self.orderbook_estimate}")
 
         self.trade()
+
+    def get_orderbooks(self):
+        orderbooks = {}
+        for product in EXPECTED_SETTLEMENT.keys():
+            resp = self.request_order_book_per_product(product)
+            print(resp)
+        #     best_bid = ob.buy_orders[0].price
+        #     best_ask = ob.sell_orders[0].price
+        #     mid_price = (best_bid + best_ask) / 2.0
+        #     orderbooks[product] = (best_bid, best_ask, mid_price, best_ask - best_bid)
+        #     logger.info(f"[ORDERBOOK {product}] Best Bid: {best_bid}, Best Ask: {best_ask}, Mid: {mid_price}, Expected Settlement: {expected_settlement}")
+        #     logger.info(f"{self.orderbook_estimate}")
+        # self.orderbook_estimate = orderbooks
 
     # TRADING LOGIC
     def trade(self):
@@ -178,9 +195,6 @@ class RoboTrader(BaseBot):
 
 if __name__ == "__main__":
     import os
-    from dotenv import load_dotenv
-
-    load_dotenv()
 
     TEST_EXCHANGE = os.environ.get("IMCITY_TEST_EXCHANGE", "http://ec2-52-31-108-187.eu-west-1.compute.amazonaws.com")
     REAL_EXCHANGE = os.environ.get("IMCITY_REAL_EXCHANGE")
@@ -191,7 +205,7 @@ if __name__ == "__main__":
         raise RuntimeError("Environment variables IMCITY_USERNAME and IMCITY_PASSWORD must be set.")
 
     try:
-        bot = RoboTrader(TEST_EXCHANGE, USERNAME, PASSWORD)
+        bot = RoboTrader(REAL_EXCHANGE, USERNAME, PASSWORD)
         
         # Sync positions on startup
         server_positions = bot.request_positions()
@@ -210,7 +224,9 @@ if __name__ == "__main__":
                 last_minute = now.minute
                 logger.warning("Running 15-min clock-aligned task...")
                 update_settlement()
-            
+
+            bot.main()
+
     except KeyboardInterrupt:
         bot.stop()
         print("Bot stopped.")
