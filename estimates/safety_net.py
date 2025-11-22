@@ -161,7 +161,6 @@ def predict_market_7() -> float:
     weighted_level = (1 - (stunden / 24)) * prior_level + (stunden / 24) * get_waterlevel().iloc[-1]
 
     filtered_dataframe = get_raw_data()
-    filtered_dataframe.set_index("date", inplace=True)
     temp = filtered_dataframe["temperature_2m"].tail(1).iloc[-1]
     hum = filtered_dataframe["relative_humidity_2m"].tail(1).iloc[-1]
 
