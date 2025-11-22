@@ -7,6 +7,8 @@ from estimates.markets import *
 from estimates.predictions import *
 from estimates.weather_forecast import get_raw_data
 
+PRIOR_FLOW = 23
+PRIOR_LEVEL = 138
 
 # --------------------------------------------------------------------
 # Helper: load CSV and get full column (used for markets needing lists)
@@ -32,11 +34,9 @@ def predict_market_1() -> int:
     # vergangene Stunden (abgerundet)
     stunden = int((jetzt - heute_zehn).total_seconds() // 3600)
 
-    prior_flow = 25.25
-    weighted_flow = (1 - (stunden/24)) * prior_flow + (stunden/24)*get_waterflow().iloc[-1]
+    weighted_flow = (1 - (stunden/24)) * PRIOR_FLOW + (stunden/24)*get_waterflow().iloc[-1]
 
-    prior_level = 145
-    weighted_level = (1 - (stunden / 24)) * prior_level + (stunden / 24) * get_waterlevel().iloc[-1]
+    weighted_level = (1 - (stunden / 24)) * PRIOR_LEVEL + (stunden / 24) * get_waterlevel().iloc[-1]
 
     return market_1_settlement(
         flow_rate=weighted_flow,
@@ -154,11 +154,9 @@ def predict_market_7() -> float:
     # vergangene Stunden (abgerundet)
     stunden = int((jetzt - heute_zehn).total_seconds() // 3600)
 
-    prior_flow = 25.25
-    weighted_flow = (1 - (stunden / 24)) * prior_flow + (stunden / 24) * get_waterflow().iloc[-1]
+    weighted_flow = (1 - (stunden / 24)) * PRIOR_FLOW + (stunden / 24) * get_waterflow().iloc[-1]
 
-    prior_level = 145
-    weighted_level = (1 - (stunden / 24)) * prior_level + (stunden / 24) * get_waterlevel().iloc[-1]
+    weighted_level = (1 - (stunden / 24)) * PRIOR_LEVEL + (stunden / 24) * get_waterlevel().iloc[-1]
 
     filtered_dataframe = get_raw_data()
     temp = filtered_dataframe["temperature_2m"].tail(1).iloc[-1]
