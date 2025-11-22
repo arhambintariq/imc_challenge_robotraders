@@ -22,9 +22,26 @@ def load_series(csv_path: str) -> List[float]:
 # Market 1 – Eisbach flow * water level
 # --------------------------------------------------------------------
 def predict_market_1() -> int:
+    # Zeitpunkt heute um 10:00 Uhr
+    heute_zehn = datetime.combine(datetime.today(), time(10, 0))
+
+    # aktueller Zeitpunkt
+    jetzt = datetime.now()
+
+    # vergangene Stunden (abgerundet)
+    stunden = int((jetzt - heute_zehn).total_seconds() // 3600)
+
+    prior_flow = 25.25
+    weighted_flow = (1 - (stunden/24)) * prior_flow + (stunden/24)*get_waterflow().iloc[-1]
+
+    prior_level = 145
+    weighted_level = (1 - (stunden / 24)) * prior_level + (stunden / 24) * get_waterlevel().iloc[-1]
+
+    print(weighted_level, weighted_flow)
+
     return market_1_settlement(
-        flow_rate=25.25,
-        water_level=145
+        flow_rate=weighted_flow,
+        water_level=weighted_level
     )
 
 
