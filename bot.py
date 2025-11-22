@@ -3,6 +3,7 @@ import logging
 import sys
 
 from imcity_template import BaseBot, Side, OrderRequest, OrderBook, Order
+from estimates.safety_net import predict_market_2, predict_market_3
 
 
 # colored stdout logging
@@ -36,15 +37,16 @@ logger.propagate = False
 
 
 EXPECTED_SETTLEMENT = {
-    '1_Eisbach': 3715,
-    '2_Eisbach_Call': 9194,
-    '3_Weather': 6971,
-    '4_Weather': 8545,
-    '5_Flights': 2499,
+    # '1_Eisbach': 3715,
+    '2_Eisbach_Call': int(predict_market_2()),
+    '3_Weather': int(predict_market_3()),
+    # '4_Weather': 8545,
+    # '5_Flights': 2499,
     # '6_Airport': 0,
     # '7_ETF': 0,
     # '8_ETF_Strangle': 0,
 }
+logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
 
 class RoboTrader(BaseBot):
     def __init__(self, *args, **kwargs):
@@ -53,7 +55,7 @@ class RoboTrader(BaseBot):
         self.last_trade_time = time.time()
 
         self.positions = {}
-        self.position_limit = 10
+        self.position_limit = 200
         self.base_order_volume = 1
         self.base_spread_percentage = 5
 
@@ -68,6 +70,7 @@ class RoboTrader(BaseBot):
 
     # INCOMING - Trade Notifications
     def on_trades(self, trades: list[dict]):
+        time.sleep(1)
         for trade in trades:
             product = trade['product']
             volume = trade['volume']
@@ -84,11 +87,14 @@ class RoboTrader(BaseBot):
 
     # INCOMING - Order Book Updates
     def on_orderbook(self, orderbook):
+        time.sleep(1)
         product = orderbook.product
         best_bid = orderbook.buy_orders[0].price
         best_ask = orderbook.sell_orders[0].price
         mid_price = (best_bid + best_ask) / 2.0
         expected_settlement = EXPECTED_SETTLEMENT.get(product, "NO EXP. SETTLEMENT")
+        if product not in EXPECTED_SETTLEMENT:
+            return
 
         self.orderbook_estimate[product] = (best_bid, best_ask, mid_price, best_ask - best_bid)
 
