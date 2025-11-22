@@ -227,7 +227,8 @@ class SSEThread(Thread):
 
         for event in self._client.events():
             if event.event == "order":
-                self._handle_orderbook_change(json.loads(event.data))
+                # self._handle_orderbook_change(json.loads(event.data))
+                pass
             elif event.event == "trade":
                 self._handle_trade_event(json.loads(event.data))
 
@@ -380,6 +381,32 @@ class BaseBot(ABC):
             }
         else:
             print(f"Failed to get net positions for user: {response.content}")
+
+    def request_order_book_per_product(self, product: str) -> OrderBook | None:
+        url = f"{self._cmi_url}/api/product/{product}/order-book/current-user?sessionId=CRAB"
+        response = requests.get(url, headers=self._get_headers())
+        if response.status_code == 200:
+            orderbook_data = response.json()
+            buy_orders = list(
+                map(
+                    lambda order: Order(**order),
+                    orderbook_data["buyOrders"],
+                )
+            )
+            sell_orders = list(
+                map(
+                    lambda order: Order(**order),
+                    orderbook_data["sellOrders"],
+                )
+            )
+            return OrderBook(
+                product=orderbook_data["product"],
+                tick_size=orderbook_data["tickSize"],
+                buy_orders=buy_orders,
+                sell_orders=sell_orders,
+            )
+        else:
+            print(f"Failed to get order book for {product}: {response.content}")
 
     def _authenticate(self) -> str:
         auth = {"username": self.username, "password": self._password}

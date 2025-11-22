@@ -68,6 +68,10 @@ class RoboTrader(BaseBot):
 
         # TODO: Check back with .request_positions() if accurate
 
+    def main(self):
+        self.get_orderbooks()
+        time.sleep(10)
+
     # INCOMING - Trade Notifications
     def on_trades(self, trades: list[dict]):
         time.sleep(1)
@@ -104,6 +108,18 @@ class RoboTrader(BaseBot):
         logger.info(f"{self.orderbook_estimate}")
 
         self.trade()
+
+    def get_orderbooks(self):
+        orderbooks = {}
+        for product in EXPECTED_SETTLEMENT.keys():
+            ob: OrderBook = self.request_order_book_per_product(product)
+            best_bid = ob.buy_orders[0].price
+            best_ask = ob.sell_orders[0].price
+            mid_price = (best_bid + best_ask) / 2.0
+            orderbooks[product] = (best_bid, best_ask, mid_price, best_ask - best_bid)
+            logger.info(f"[ORDERBOOK {product}] Best Bid: {best_bid}, Best Ask: {best_ask}, Mid: {mid_price}, Expected Settlement: {expected_settlement}")
+            logger.info(f"{self.orderbook_estimate}")
+        self.orderbook_estimate = orderbooks
 
     # TRADING LOGIC
     def trade(self):
@@ -192,6 +208,7 @@ if __name__ == "__main__":
         
         while True:
             time.sleep(1)
+            bot.main()
             
     except KeyboardInterrupt:
         bot.stop()
