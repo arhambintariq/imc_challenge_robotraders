@@ -71,16 +71,13 @@ def market_4_settlement(
     Settlement = |result|
     """
 
-    #print(temps)
-    #print(humidities)
-    #print(zip(temps, humidities))
-
     if len(temps) != len(humidities):
         raise ValueError("Temperature and humidity list must match")
 
     total = 0
     for (T, medT, meanT), (H, medH, meanH) in zip(temps, humidities):
-        diff = T * (meanT - medT) * (meanH - medH)
+        diff = (T+H) * (meanT - medT) * (meanH - medH)
+        print(diff)
         total += diff
 
     return abs(round(total))
