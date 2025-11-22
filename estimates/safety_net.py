@@ -1,5 +1,7 @@
 import pandas as pd
 from typing import List
+import numpy as np
+from datetime import datetime, time
 
 from estimates.markets import *
 from estimates.predictions import *
@@ -19,24 +21,38 @@ def load_series(csv_path: str) -> List[float]:
 # --------------------------------------------------------------------
 # Market 1 – Eisbach flow * water level
 # --------------------------------------------------------------------
-def predict_market_1(flow_csv: str, level_csv: str) -> int:
-    flow = predict_flow_rate(flow_csv)
-    level = predict_water_level(level_csv)
-    return market_1_settlement(flow, level)
+def predict_market_1() -> int:
+    return market_1_settlement(
+        flow_rate=24.6,
+        water_level=151
+    )
 
 
 # --------------------------------------------------------------------
 # Market 2 – Eisbach extrema option
 # --------------------------------------------------------------------
-def predict_market_2(flow_csv: str, level_csv: str, strike: float = 5000) -> float:
-    url = "https://www.hnd.bayern.de/pegel/isar/muenchen-himmelreichbruecke-16515005/tabelle"
-    df_level = scrape_waterlevel(url)
-    flow_series = df_level["data"].tail(24)
+def predict_market_2() -> float:
 
-    url = "https://www.hnd.bayern.de/pegel/isar/muenchen-himmelreichbruecke-16515005/tabelle?methode=abfluss&"
-    df_flow = scrape_waterflow(url)
-    level_series = df_flow["data"].tail(24)
-    return market_2_call_value(flow_series, level_series, strike=strike)
+    # Zeitpunkt heute um 10:00 Uhr
+    heute_zehn = datetime.combine(datetime.today(), time(10, 0))
+
+    # aktueller Zeitpunkt
+    jetzt = datetime.now()
+
+    # vergangene Stunden (abgerundet)
+    stunden = int((jetzt - heute_zehn).total_seconds() // 3600)
+
+    # --- Daten laden ---
+    wl_actual = get_waterlevel().tail(24-stunden)
+    wf_actual = get_waterflow().tail(24-stunden)
+
+    wl = list(wl_actual)
+    wl += [wl[-1]] * (24 - len(wl))
+
+    wf = list(wf_actual)
+    wf += [wf[-1]] * (24 - len(wf))
+
+    return market_2_call_value(water_levels=wl, flow_rates=wf, strike=5000)
 
 
 # --------------------------------------------------------------------
@@ -112,24 +128,6 @@ def predict_market_6(arrivals_csv: str, departures_csv: str) -> int:
 # --------------------------------------------------------------------
 # Market 7 – ETF
 # --------------------------------------------------------------------
-def predict_market_7(
-    flow_csv: str,
-    water_csv: str,
-    temp_csv: str,
-    humidity_csv: str,
-    arrivals_csv: str,
-    departures_csv: str
-) -> float:
-
-    # single-point predictions
-    flow = load_last_value(flow_csv)
-    water = load_last_value(water_csv)
-    temp = load_last_value(temp_csv)
-    hum = load_last_value(humidity_csv)
-
-    # airport metric is sum of market_6 interval metrics
-    arr_full = load_series(arrivals_csv)
-    dep_full = load_series(departures_csv)
-    airport_value = abs(sum(airport_metric(a, d) for a, d in zip(arr_full, dep_full)))
+def predict_market_7(flow, water, temp, hum, airport_value) -> float:
 
     return market_7_etf_settlement(flow, water, temp, hum, airport_value)

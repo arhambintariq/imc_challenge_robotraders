@@ -19,7 +19,7 @@ def market_2_settlement(flow_rates: List[float], water_levels: List[float]) -> i
     """
     Settlement = max(wl) - max(fr)  *  min(wl) - min(fr), rounded
     """
-    if flow_rates.empty or water_levels.empty:
+    if len(flow_rates)==0 or len(water_levels)==0:
         raise ValueError("Lists cannot be empty")
 
     max_wl = max(water_levels)
