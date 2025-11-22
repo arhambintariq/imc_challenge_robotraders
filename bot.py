@@ -1,10 +1,10 @@
-import time
+from time import sleep, time
 import logging
 import sys
-from datetime import datetime
+import datetime
 
 from imcity_template import BaseBot, Side, OrderRequest, OrderBook, Order
-from estimates.safety_net import predict_market_2, predict_market_3
+from estimates.safety_net import *
 from estimates.weather_forecast import get_3_weather_prediction
 
 
@@ -39,9 +39,9 @@ logger.propagate = False
 
 
 EXPECTED_SETTLEMENT = {
-    # '1_Eisbach': 3715,
+    '1_Eisbach': int(predict_market_1()),
     '2_Eisbach_Call': int(predict_market_2()),
-    '3_Weather': int(predict_market_3()),
+    '3_Weather': int(get_3_weather_prediction()),
     # '4_Weather': 8545,
     # '5_Flights': 2499,
     # '6_Airport': 0,
@@ -52,8 +52,9 @@ logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
 
 
 def update_settlement():
+    EXPECTED_SETTLEMENT['1_Eisbach'] = int(predict_market_1())
     EXPECTED_SETTLEMENT['2_Eisbach_Call'] = int(predict_market_2())
-    EXPECTED_SETTLEMENT['3_Weather'] = int(predict_market_3())
+    EXPECTED_SETTLEMENT['3_Weather'] = int(get_3_weather_prediction())
     logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
 
 
@@ -61,7 +62,7 @@ class RoboTrader(BaseBot):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.new_orders: list[OrderRequest] = []
-        self.last_trade_time = time.time()
+        self.last_trade_time = time()
 
         self.positions = {}
         self.position_limit = 200
@@ -79,11 +80,11 @@ class RoboTrader(BaseBot):
 
     def main(self):
         self.get_orderbooks()
-        time.sleep(10)
+        sleep(10)
 
     # INCOMING - Trade Notifications
     def on_trades(self, trades: list[dict]):
-        time.sleep(1)
+        sleep(1)
         for trade in trades:
             product = trade['product']
             volume = trade['volume']
@@ -169,12 +170,12 @@ class RoboTrader(BaseBot):
 
     # OUTGOING - Place Orders
     def add_order(self, product, side: Side, price, volume):
-        if time.time() - self.last_trade_time < 1:
+        if time() - self.last_trade_time < 1:
             self.add_order_to_backlog(product, side, price, volume)
         else:
             self.add_order_to_backlog(product, side, price, volume)
             self.execute_orders()
-            self.last_trade_time = time.time()
+            self.last_trade_time = time()
 
     def add_order_to_backlog(self, product, side: Side, price, volume):
         order_request = OrderRequest(
@@ -195,9 +196,12 @@ class RoboTrader(BaseBot):
 
 if __name__ == "__main__":
     import os
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     TEST_EXCHANGE = os.environ.get("IMCITY_TEST_EXCHANGE", "http://ec2-52-31-108-187.eu-west-1.compute.amazonaws.com")
-    REAL_EXCHANGE = os.environ.get("IMCITY_REAL_EXCHANGE")
+    REAL_EXCHANGE = os.environ.get("IMCITY_REAL_EXCHANGE", "http://ec2-18-203-201-148.eu-west-1.compute.amazonaws.com/")
     USERNAME = os.environ.get("IMCITY_USERNAME")
     PASSWORD = os.environ.get("IMCITY_PASSWORD")
 
@@ -217,8 +221,6 @@ if __name__ == "__main__":
 
         last_minute = None
         while True:
-            time.sleep(10)
-
             now = datetime.now()
             if now.minute in {1, 16, 34, 46} and now.minute != last_minute:
                 last_minute = now.minute
@@ -226,6 +228,7 @@ if __name__ == "__main__":
                 update_settlement()
 
             bot.main()
+
 
     except KeyboardInterrupt:
         bot.stop()
