@@ -23,10 +23,10 @@ def get_raw_data():
     responses = openmeteo.weather_api(url, params=params)
 
     response = responses[0]
-    print(f"Coordinates: {response.Latitude()}°N {response.Longitude()}°E")
-    print(f"Elevation: {response.Elevation()} m asl")
-    print(f"Timezone: {response.Timezone()}{response.TimezoneAbbreviation()}")
-    print(f"Timezone difference to GMT+0: {response.UtcOffsetSeconds()}s")
+    # print(f"Coordinates: {response.Latitude()}°N {response.Longitude()}°E")
+    # print(f"Elevation: {response.Elevation()} m asl")
+    # print(f"Timezone: {response.Timezone()}{response.TimezoneAbbreviation()}")
+    # print(f"Timezone difference to GMT+0: {response.UtcOffsetSeconds()}s")
 
     minutely_15 = response.Minutely15()
     minutely_15_temperature_2m = minutely_15.Variables(0).ValuesAsNumpy()
@@ -53,51 +53,53 @@ def get_raw_data():
     # Filter the DataFrame for the specified date range
     filtered_dataframe = minutely_15_dataframe[(minutely_15_dataframe["date"] >= start_time) & 
                                                 (minutely_15_dataframe["date"] <= end_time)]
-
+    filtered_dataframe.set_index("date", inplace=True)
+    filtered_dataframe = filtered_dataframe.resample('30min').mean()
     # print("\nFiltered DataFrame from 2025-11-22 10:00 to 2025-11-23 10:00:\n", filtered_dataframe)
-    print(filtered_dataframe.describe())
+    # print(filtered_dataframe.describe())
+    # print(filtered_dataframe)
     return filtered_dataframe
 
 def get_3_weather_prediction():
     # Get the filtered data
-    filtered_dataframe = get_raw_data()
+    df = get_raw_data()
 
-    # Calculate the mean for each 30-minute interval
-    filtered_dataframe.set_index("date", inplace=True)
-    mean_values = filtered_dataframe.resample('30min').mean()
-    print(mean_values)
     # Calculate the desired value: temperature * 2 + humidity
-    mean_values['calculated_value'] = (mean_values['temperature_2m'] * 2) + mean_values['relative_humidity_2m']
+    df['calculated_value'] = (df['temperature_2m'] * 2) + df['relative_humidity_2m']
 
     # Sum up the calculated values for all 48 bins
-    total_sum = int(mean_values['calculated_value'].sum())
+    total_sum = int(df['calculated_value'].sum())
 
     print("\n3_Weather", total_sum)
     return total_sum
 
-def get_4_weather_prediction(min_periods=1):
+def get_4_weather_prediction():
     """
     Compute sum over 30min bins of:
-      temperature * (mean(temp) - median(temp) * (mean(humidity) - median(humidity)))
+      temperature * ((mean(temp) - median(temp)) * (mean(humidity) - median(humidity)))
 
     Means/medians use an expanding window (everything up to the current 30min bin).
     """
-    # get 15min filtered data and aggregate to 30min bins (mean of two 15min samples)
     df = get_raw_data()
-    df = df.set_index("date")
-    mean_values = df.resample("30min").mean()
+    # 1. Calculate Expanding Mean and Median for Temperature
+    # min_periods=1 ensures the first row is calculated using just itself
+    t_expanding_mean = df['temperature_2m'].expanding(min_periods=1).mean()
+    t_expanding_median = df['temperature_2m'].expanding(min_periods=1).median()
 
-    # expanding (everything up to current) statistics on the 30min series
-    rm_temp = mean_values["temperature_2m"].expanding(min_periods=min_periods).mean()
-    rd_temp = mean_values["temperature_2m"].expanding(min_periods=min_periods).median()
-    rm_hum = mean_values["relative_humidity_2m"].expanding(min_periods=min_periods).mean()
-    rd_hum = mean_values["relative_humidity_2m"].expanding(min_periods=min_periods).median()
+    # 2. Calculate Expanding Mean and Median for Humidity
+    h_expanding_mean = df['relative_humidity_2m'].expanding(min_periods=1).mean()
+    h_expanding_median = df['relative_humidity_2m'].expanding(min_periods=1).median()
 
-    # elementwise expression and sum
-    expr = mean_values["temperature_2m"] * ((rm_temp - rd_temp) * (rm_hum - rd_hum))
-    total_sum = float(expr.sum())
+    # 3. Apply the specific formula per bin
+    # Note: For the very first row, Mean == Median, so the result will be 0.
+    term_temp_diff = t_expanding_mean - t_expanding_median
+    term_hum_diff = h_expanding_mean - h_expanding_median
+    
+    df['bin_metric'] = (df['temperature_2m'] + df["relative_humidity_2m"]) * term_temp_diff * term_hum_diff
 
-    print(f"4_Weather: {total_sum}")
+    # 4. Compute the final sum over all bins
+    total_sum = df['bin_metric'].sum()
+    print("\n4_Weather", abs(int(total_sum)))
     return total_sum
 
 

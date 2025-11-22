@@ -55,10 +55,10 @@ def predict_humidity():
 # Market 28 & 29 — Airport Arrivals Prediction
 # ---------------------------------------------------------
 def predict_arrivals():
-    df = pd.read_csv("departures_arrivals_munich.csv")
+    df = pd.read_csv("./estimates/departures_arrivals_munich.csv")
     return df["arrivals"]
 
 # Market 28 & 29 — Airport Departures Prediction
 def predict_departures():
-    df = pd.read_csv("departures_arrivals_munich.csv")
+    df = pd.read_csv("./estimates/departures_arrivals_munich.csv")
     return df["departures"]
