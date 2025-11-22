@@ -4,6 +4,7 @@ import sys
 
 from imcity_template import BaseBot, Side, OrderRequest, OrderBook, Order
 from estimates.safety_net import predict_market_2, predict_market_3
+from estimates.weather_forecast import get_3_weather_prediction
 
 
 # colored stdout logging
@@ -39,7 +40,7 @@ logger.propagate = False
 EXPECTED_SETTLEMENT = {
     # '1_Eisbach': 3715,
     '2_Eisbach_Call': int(predict_market_2()),
-    '3_Weather': int(predict_market_3()),
+    '3_Weather': int(get_3_weather_prediction()),
     # '4_Weather': 8545,
     # '5_Flights': 2499,
     # '6_Airport': 0,
@@ -91,7 +92,6 @@ class RoboTrader(BaseBot):
 
     # INCOMING - Order Book Updates
     def on_orderbook(self, orderbook):
-        time.sleep(1)
         product = orderbook.product
         best_bid = orderbook.buy_orders[0].price
         best_ask = orderbook.sell_orders[0].price
@@ -112,14 +112,15 @@ class RoboTrader(BaseBot):
     def get_orderbooks(self):
         orderbooks = {}
         for product in EXPECTED_SETTLEMENT.keys():
-            ob: OrderBook = self.request_order_book_per_product(product)
-            best_bid = ob.buy_orders[0].price
-            best_ask = ob.sell_orders[0].price
-            mid_price = (best_bid + best_ask) / 2.0
-            orderbooks[product] = (best_bid, best_ask, mid_price, best_ask - best_bid)
-            logger.info(f"[ORDERBOOK {product}] Best Bid: {best_bid}, Best Ask: {best_ask}, Mid: {mid_price}, Expected Settlement: {expected_settlement}")
-            logger.info(f"{self.orderbook_estimate}")
-        self.orderbook_estimate = orderbooks
+            resp = self.request_order_book_per_product(product)
+            print(resp)
+        #     best_bid = ob.buy_orders[0].price
+        #     best_ask = ob.sell_orders[0].price
+        #     mid_price = (best_bid + best_ask) / 2.0
+        #     orderbooks[product] = (best_bid, best_ask, mid_price, best_ask - best_bid)
+        #     logger.info(f"[ORDERBOOK {product}] Best Bid: {best_bid}, Best Ask: {best_ask}, Mid: {mid_price}, Expected Settlement: {expected_settlement}")
+        #     logger.info(f"{self.orderbook_estimate}")
+        # self.orderbook_estimate = orderbooks
 
     # TRADING LOGIC
     def trade(self):

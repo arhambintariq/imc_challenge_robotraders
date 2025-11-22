@@ -185,29 +185,29 @@ class SSEThread(Thread):
         buy_orders = sorted(
             [
                 {
-                    "price": float(price),
-                    "volume": volumes["marketVolume"],
-                    "own_volume": volumes["userVolume"],
+                    "price": float(order["price"]),
+                    "volume": order["volume"],
+                    "own_volume": order["userOrderVolume"],
                 }
-                for price, volumes in orderbook["buyOrders"].items()
+                for order in orderbook["buy"]
             ],
             key=lambda d: -d["price"],
         )
         sell_orders = sorted(
             [
                 {
-                    "price": float(price),
-                    "volume": volumes["marketVolume"],
-                    "own_volume": volumes["userVolume"],
+                    "price": float(order["price"]),
+                    "volume": order["volume"],
+                    "own_volume": order["userOrderVolume"],
                 }
-                for price, volumes in orderbook["sellOrders"].items()
+                for order in orderbook["sell"]
             ],
             key=lambda d: d["price"],
         )
 
         self._handle_orderbook(
             OrderBook(
-                orderbook["productsymbol"],
+                orderbook["product"],
                 orderbook["tickSize"],
                 list(map(lambda order: Order(**order), buy_orders)),
                 list(map(lambda order: Order(**order), sell_orders)),
@@ -386,27 +386,29 @@ class BaseBot(ABC):
         url = f"{self._cmi_url}/api/product/{product}/order-book/current-user?sessionId=CRAB"
         response = requests.get(url, headers=self._get_headers())
         if response.status_code == 200:
-            orderbook_data = response.json()
-            buy_orders = list(
-                map(
-                    lambda order: Order(**order),
-                    orderbook_data["buyOrders"],
-                )
-            )
-            sell_orders = list(
-                map(
-                    lambda order: Order(**order),
-                    orderbook_data["sellOrders"],
-                )
-            )
-            return OrderBook(
-                product=orderbook_data["product"],
-                tick_size=orderbook_data["tickSize"],
-                buy_orders=buy_orders,
-                sell_orders=sell_orders,
-            )
-        else:
-            print(f"Failed to get order book for {product}: {response.content}")
+            self._sse_thread._handle_orderbook_change(json.loads(response.text))
+            return True
+        #     orderbook_data = response.json()
+        #     buy_orders = list(
+        #         map(
+        #             lambda order: Order(**order),
+        #             orderbook_data["buy"],
+        #         )
+        #     )
+        #     sell_orders = list(
+        #         map(
+        #             lambda order: Order(**order),
+        #             orderbook_data["sell"],
+        #         )
+        #     )
+        #     return OrderBook(
+        #         product=orderbook_data["product"],
+        #         tick_size=orderbook_data["tickSize"],
+        #         buy_orders=buy_orders,
+        #         sell_orders=sell_orders,
+        #     )
+        # else:
+        #     print(f"Failed to get order book for {product}: {response.content}")
 
     def _authenticate(self) -> str:
         auth = {"username": self.username, "password": self._password}
