@@ -111,9 +111,6 @@ def airport_metric(arrivals: int, departures: int) -> float:
         return 0.0
 
     metric = 300 * (arrivals - departures) / (denom ** 1.5)
-
-    print(f"a {arrivals} d {departures} m {metric}")
-
     return metric
 
 

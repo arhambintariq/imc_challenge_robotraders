@@ -5,6 +5,7 @@ from datetime import datetime, time
 
 from estimates.markets import *
 from estimates.predictions import *
+from estimates.weather_forecast import get_raw_data
 
 
 # --------------------------------------------------------------------
@@ -36,8 +37,6 @@ def predict_market_1() -> int:
 
     prior_level = 145
     weighted_level = (1 - (stunden / 24)) * prior_level + (stunden / 24) * get_waterlevel().iloc[-1]
-
-    print(weighted_level, weighted_flow)
 
     return market_1_settlement(
         flow_rate=weighted_flow,
@@ -146,11 +145,28 @@ def predict_market_6() -> int:
 # Market 7 – ETF
 # --------------------------------------------------------------------
 def predict_market_7() -> float:
+    # Zeitpunkt heute um 10:00 Uhr
+    heute_zehn = datetime.combine(datetime.today(), time(10, 0))
 
-    flow = get_waterflow().iloc[-1]
-    water = get_waterlevel().iloc[-1]
-    temp = get_temperature().iloc[-1]
-    hum = get_humidity().iloc[-1]
+    # aktueller Zeitpunkt
+    jetzt = datetime.now()
+
+    # vergangene Stunden (abgerundet)
+    stunden = int((jetzt - heute_zehn).total_seconds() // 3600)
+
+    prior_flow = 25.25
+    weighted_flow = (1 - (stunden / 24)) * prior_flow + (stunden / 24) * get_waterflow().iloc[-1]
+
+    prior_level = 145
+    weighted_level = (1 - (stunden / 24)) * prior_level + (stunden / 24) * get_waterlevel().iloc[-1]
+
+    filtered_dataframe = get_raw_data()
+    filtered_dataframe.set_index("date", inplace=True)
+    temp = filtered_dataframe["temperature_2m"].tail(1).iloc[-1]
+    hum = filtered_dataframe["relative_humidity_2m"].tail(1).iloc[-1]
+
+    flow = weighted_flow
+    water = weighted_level
     airport_value = predict_market_6()
 
     print(f"{flow} {water} {temp} {hum} {airport_value}")
