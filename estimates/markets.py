@@ -86,16 +86,14 @@ def market_4_settlement(
 # ---------------------------------------------------------
 # Airport 5
 # ---------------------------------------------------------
-def market_5_settlement(arrivals: List[int], departures: List[int]) -> int:
+def market_5_settlement(arrivals, departures) -> int:
     """
     Settlement = 3 * sum(arrivals + departures)
     """
     if len(arrivals) != len(departures):
         raise ValueError("Arrivals and departures list must match")
 
-    # TODO
-
-    total = 3 * 833
+    total = 3 * (arrivals.to_numpy().sum() + departures.to_numpy().sum())
 
     return total
 
@@ -112,12 +110,14 @@ def airport_metric(arrivals: int, departures: int) -> float:
     if denom == 0:
         return 0.0
 
-    # TODO
+    metric = 300 * (arrivals - departures) / (denom ** 1.5)
 
-    return 300 * (arrivals - departures) / (denom ** 1.5)
+    print(f"a {arrivals} d {departures} m {metric}")
+
+    return metric
 
 
-def market_6_settlement(arrivals: List[int], departures: List[int]) -> int:
+def market_6_settlement(arrivals, departures) -> int:
     """
     Settlement = | sum(interval_metrics) |, rounded down (int)
     """

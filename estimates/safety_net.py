@@ -23,8 +23,8 @@ def load_series(csv_path: str) -> List[float]:
 # --------------------------------------------------------------------
 def predict_market_1() -> int:
     return market_1_settlement(
-        flow_rate=24.6,
-        water_level=151
+        flow_rate=25.25,
+        water_level=145
     )
 
 
@@ -119,15 +119,23 @@ def predict_market_5() -> int:
 # --------------------------------------------------------------------
 # Market 6 – Airport metric
 # --------------------------------------------------------------------
-def predict_market_6(arrivals_csv: str, departures_csv: str) -> int:
-    arr = predict_arrivals(arrivals_csv)
-    dep = predict_departures(departures_csv)
+def predict_market_6() -> int:
+    arr = predict_arrivals()
+    dep = predict_departures()
     return market_6_settlement(arr, dep)
 
 
 # --------------------------------------------------------------------
 # Market 7 – ETF
 # --------------------------------------------------------------------
-def predict_market_7(flow, water, temp, hum, airport_value) -> float:
+def predict_market_7() -> float:
+
+    flow = get_waterflow().iloc[-1]
+    water = get_waterlevel().iloc[-1]
+    temp = get_temperature().iloc[-1]
+    hum = get_humidity().iloc[-1]
+    airport_value = predict_market_6()
+
+    print(f"{flow} {water} {temp} {hum} {airport_value}")
 
     return market_7_etf_settlement(flow, water, temp, hum, airport_value)
