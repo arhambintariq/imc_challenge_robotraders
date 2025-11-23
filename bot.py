@@ -39,12 +39,12 @@ logger.propagate = False
 
 
 EXPECTED_SETTLEMENT = {
-    # '1_Eisbach': int(predict_market_1()),
+    '1_Eisbach': int(predict_market_1()),
     '2_Eisbach_Call': int(predict_market_2()),
     '3_Weather': int(get_3_weather_prediction()),
     # '4_Weather': 8545,
-    # '5_Flights': 2499,
-    # '6_Airport': 0,
+    '5_Flights': int(predict_market_5()),
+    '6_Airport': int(predict_market_6()),
     '7_ETF': int(predict_market_7()),
     # '8_ETF_Strangle': 0,
 }
@@ -52,10 +52,11 @@ logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
 
 
 def update_settlement():
-    # EXPECTED_SETTLEMENT['1_Eisbach'] = int(predict_market_1())
+    EXPECTED_SETTLEMENT['1_Eisbach'] = int(predict_market_1())
     EXPECTED_SETTLEMENT['2_Eisbach_Call'] = int(predict_market_2())
     EXPECTED_SETTLEMENT['3_Weather'] = int(get_3_weather_prediction())
-    sleep(1)
+    EXPECTED_SETTLEMENT['5_Flights'] = int(predict_market_5())
+    EXPECTED_SETTLEMENT['6_Airport'] = int(predict_market_6())
     EXPECTED_SETTLEMENT['7_ETF'] = int(predict_market_7())
     logger.info(f"Expected Settlements: {EXPECTED_SETTLEMENT}")
 
@@ -67,8 +68,8 @@ class RoboTrader(BaseBot):
         self.last_trade_time = datetime.now()
 
         self.positions = {}
-        self.position_limit = 100
-        self.base_order_volume = 1
+        self.position_limit = 200
+        self.base_order_volume = 2
         self.base_spread_percentage = 10
 
         self.orderbook_estimate = {} # product_name -> (best_bid, best_ask, mid_price, spread)
@@ -107,6 +108,8 @@ class RoboTrader(BaseBot):
     # INCOMING - Order Book Updates
     def on_orderbook(self, orderbook):
         product = orderbook.product
+        if not orderbook.buy_orders or not orderbook.sell_orders:
+            return
         best_bid = orderbook.buy_orders[0].price
         best_ask = orderbook.sell_orders[0].price
         mid_price = (best_bid + best_ask) / 2.0
@@ -130,6 +133,8 @@ class RoboTrader(BaseBot):
 
     # TRADING LOGIC
     def trade(self):
+        order_volume = self.base_order_volume
+        bot.cancel_all_orders()
         for product in self.orderbook_estimate:
             best_bid, best_ask, market_mid_price, market_spread = self.orderbook_estimate[product]
             current_pos = self.positions.get(product, 0)
@@ -137,11 +142,25 @@ class RoboTrader(BaseBot):
             if not estimated_settlement:
                 continue
 
-            spread = estimated_settlement * (self.base_spread_percentage / 100)
-            my_bid = int(estimated_settlement - (spread / 2))
-            my_ask = int(estimated_settlement + (spread / 2))
+            # Skew adjustment
+            # skew_factor = 0.005  # For every 1 unit of position
+            # current_skew = current_pos * skew_factor * abs(estimated_settlement - market_mid_price)
+            adjusted_settlement = estimated_settlement# - current_skew
 
-            order_volume = self.base_order_volume
+            # Based on estimated settlement
+            spread = adjusted_settlement * (self.base_spread_percentage / 100)
+            my_bid = int(adjusted_settlement - (spread / 2))
+            my_ask = int(adjusted_settlement + (spread / 2))
+
+            my_bid = min(my_bid, best_bid + 1)
+            my_ask = max(my_ask, best_ask - 1)
+
+            if my_bid >= my_ask:
+            # If spread is crossed, we essentially become a Taker. 
+            # Back off slightly to maintain a minimum spread.
+                mid = (my_bid + my_ask) / 2
+                my_bid = int(mid - 1)
+                my_ask = int(mid + 1)
 
             # Safety Checks
             can_buy = current_pos + order_volume <= self.position_limit
@@ -206,7 +225,7 @@ if __name__ == "__main__":
         raise RuntimeError("Environment variables IMCITY_USERNAME and IMCITY_PASSWORD must be set.")
 
     try:
-        bot = RoboTrader(TEST_EXCHANGE, USERNAME, PASSWORD)
+        bot = RoboTrader(REAL_EXCHANGE, USERNAME, PASSWORD)
         
         # Sync positions on startup
         server_positions = bot.request_positions()
